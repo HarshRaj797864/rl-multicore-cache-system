@@ -415,18 +415,52 @@ int main()
 
     // --- EXPERIMENT 3: Sampling Rate Sensitivity ---
     std::cout << "\n[Experiment 3] Sampling Rate Impact (32 vs 2 vs 1)" << std::endl;
-    for (int rate : {32, 2, 1})
-    {
-        PerceptronBrain b_rate;
-        COALESCE_Policy p_rate(&b_rate, rate);
-        Simulator s_rate(&p_rate);
-        for (int i = 0; i < 5000; i++)
-        {
-            s_rate.access(1000 + (i % 600), 0xBAD, 0, EXCLUSIVE);
-            s_rate.access(i % 16, 0xF00D, 4, MODIFIED);
-        }
-        std::cout << "Sample Every " << rate << " sets | Hit Rate: " << (100.0 * s_rate.hits / (s_rate.hits + s_rate.misses)) << "%" << std::endl;
-    }
+    std::cout << "=== BTP PROJECT: ADVANCED SCENARIO ANALYSIS ===\n";
 
+    std::cout << "\n[Experiment] Phase Change Adaptation (The 'Blind Spot' Scenario)" << std::endl;
+    std::cout << "Scenario: Phase 2 activity happens in Set 1 (Unsampled). Sampled sets are 0 & 32.\n";
+
+    for(int rate : {1, 32}) { // Compare 100% Sampling vs 3% Sampling
+        PerceptronBrain brain; 
+        COALESCE_Policy policy(&brain, rate); 
+        Simulator sim(&policy);
+        
+        int hits_p1 = 0, accesses_p1 = 0;
+        int hits_p2 = 0, accesses_p2 = 0;
+
+        // PHASE 1: Training (Normal)
+        // We ensure this touches Set 0 (Sampled) so both policies start Smart.
+        // Address 0 maps to Set 0.
+        for(int i=0; i<5000; i++) {
+            sim.access(64 + (i * 4096), 0x222, 0, EXCLUSIVE);   // 0x111 = Bad (Scanner)
+            sim.access(65,0x111, 4, MODIFIED);    // 0x222 = Good (Hot Set 0-15)
+        }
+        hits_p1 = sim.hits;
+        accesses_p1 = sim.hits + sim.misses;
+
+        // PHASE 2: The Blind Spot Switch
+        // We shift traffic to Set 1 (Address 1, 65, 129...).
+        // Set 1 is NOT sampled in the 1/32 configuration.
+        // 100% Sampling should see this. 3% Sampling should be blind to it.
+        
+        for(int i=0; i<5000; i++) {
+            // Scanner moves to offset 5 (Sets 5, 6, 7...) - Invisible to Set 0/32 for a while
+            sim.access(40005 + i, 0x222, 0, EXCLUSIVE);   // 0x222 becomes Bad!
+            
+            // Hot Data moves to Set 5 specifically (Address 5) - Invisible to Set 0/32
+            sim.access(5,         0x111, 4, MODIFIED);    // 0x111 becomes Good!
+        }
+        
+        hits_p2 = sim.hits - hits_p1;
+        accesses_p2 = (sim.hits + sim.misses) - accesses_p1;
+
+        std::cout << "Sampling Rate 1/" << rate << ":\n";
+        std::cout << "  Phase 1 Hit Rate: " << std::fixed << std::setprecision(2) << (100.0 * hits_p1 / accesses_p1) << "%\n";
+        std::cout << "  Phase 2 Hit Rate: " << (100.0 * hits_p2 / accesses_p2) << "% (Adaptation Speed)\n";
+        
+        int w1 = brain.predict(0x111, 4, MODIFIED); 
+        int w2 = brain.predict(0x222, 0, EXCLUSIVE);
+        std::cout << "  Final Weights -> PC 0x111 (Should be +): " << w1 << " | PC 0x222 (Should be -): " << w2 << "\n\n";
+    }
     return 0;
 }
