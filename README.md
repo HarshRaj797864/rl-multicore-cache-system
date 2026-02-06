@@ -3,7 +3,7 @@
 > **Bachelor Thesis Project (BTP)** | *Feb 2026* > **Focus:** Systems Architecture, C++, Reinforcement Learning, High-Performance Computing
 
 ## Project Overview
-**COALESCE** (Coherence-Aware Learning for Shared Cache Efficiency) is a novel cache replacement policy designed for multicore L3 caches. It addresses the "Coherence Wall" in 8-core processors by predicting the **Coherence Cost** of data, not just its recency.
+**COALESCE** (Coherence-Aware Learning for Shared Cache Efficiency) is a novel cache replacement policy designed for multicore L3 caches. It addresses the "Coherence Wall" in 4-core processors by predicting the **Coherence Cost** of data, not just its recency.
 
 By fusing **Perceptron Learning** with **MESI Coherence States**, this policy protects critical synchronization primitives and shared data that standard policies (LRU, SRRIP) blindly evict.
 
